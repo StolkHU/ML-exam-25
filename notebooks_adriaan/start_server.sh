@@ -9,6 +9,6 @@ fi
 
 # Run the mlflow server
 mlflow server \
-    --backend-store-uri sqlite:///mads_exam.db \
+    --backend-store-uri sqlite:///mads_exam_2D_explore.db \
     --default-artifact-root ./mlruns \
     --host 127.0.0.1
