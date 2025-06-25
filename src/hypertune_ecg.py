@@ -11,8 +11,8 @@ from load_heart_data import get_heart_streamers
 from src import metrics
 from mltrainer import Trainer, TrainerSettings, ReportTypes
 
-NUM_SAMPLES = 50
-MAX_EPOCHS = 20
+NUM_SAMPLES = 20
+MAX_EPOCHS = 10
 
 def train(config):
     """Training functie - simpel en direct"""
@@ -41,7 +41,7 @@ def train(config):
 
     logger.info(f"Using device: {device}")
 
-    # AS: Trainer settings - simpel gehouden
+    # AS: Trainer settings
     settings = TrainerSettings(
         epochs=MAX_EPOCHS,
         metrics=metric_list,
@@ -72,10 +72,9 @@ if __name__ == "__main__":
     import ray
     ray.init()
 
-    # AS: Zeer eenvoudige config - alleen essentiële parameters
     config = {
-        # AS: Data parameters - zorg voor correcte pad
-        "data_dir": str(Path("../data").resolve()),  # AS: Aangepast pad zonder ../
+        # AS: Data parameters 
+        "data_dir": str(Path("../data").resolve()),  
         "dataset_name": "heart_big", 
         "target_count": 15000,
         "batch_size": tune.choice([32, 64]),
@@ -85,9 +84,9 @@ if __name__ == "__main__":
         "output": 5,
         "dropout": tune.uniform(0.2, 0.5),
         
-        # AS: Parameters die matchen met het nieuwe model
+        # AS: Parameters voor architectuur
         "num_conv_layers": tune.choice([3, 4, 5]),  # Bepaalt welke conv layers gebruikt worden
-        "base_channels": tune.choice([16, 32, 64]), # Basis aantal channels
+        "base_channels": tune.choice([16, 32, 64, 128, 256]), # Basis aantal channels
         "kernel_size": tune.choice([3, 5, 7]),      # Kernel size voor alle conv layers
         
         # AS: Training parameters
