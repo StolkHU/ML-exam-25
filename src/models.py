@@ -2,122 +2,102 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class SqueezeExciteBlock(nn.Module):
-    def __init__(self, channels, reduction=16):
-        super().__init__()
-        self.fc1 = nn.Linear(channels, channels // reduction)
-        self.fc2 = nn.Linear(channels // reduction, channels)
-
-    def forward(self, x):
-        batch, channels, length = x.size()
-        y = F.adaptive_avg_pool1d(x, 1).view(batch, channels)
-        y = F.relu(self.fc1(y))
-        y = torch.sigmoid(self.fc2(y)).view(batch, channels, 1)
-        return x * y.expand_as(x)
-
-class AttentionBlock(nn.Module):
-    def __init__(self, channels):
-        super().__init__()
-        self.query = nn.Conv1d(channels, channels, kernel_size=1)
-        self.key = nn.Conv1d(channels, channels, kernel_size=1)
-        self.value = nn.Conv1d(channels, channels, kernel_size=1)
-
-    def forward(self, x):
-        Q = self.query(x)
-        K = self.key(x)
-        V = self.value(x)
-        attn_weights = torch.softmax(torch.bmm(Q.transpose(1, 2), K), dim=-1)
-        attn_output = torch.bmm(attn_weights, V.transpose(1, 2)).transpose(1, 2)
-        return attn_output
-
 class ModularCNN(nn.Module):
     def __init__(self, config):
         super().__init__()
+        # AS: Basis parameters
         self.num_classes = config.get("output", 5)
         self.dropout_rate = config.get("dropout", 0.3)
-        self.use_se = config.get("squeeze_excite", False)
-        self.use_attention = config.get("attention", False)
-        self.skip_layers = config.get("skip_layers", [])
         self.input_channels = config.get("input_channels", 1)
+        
+        # AS: Architectuur parameters
         self.num_conv_layers = config.get("num_conv_layers", 4)
-        self.min_out_channels = config.get("min_out_channels", 32)
-        self.max_out_channels = config.get("max_out_channels", 128)
-        self.kernel_sizes = config.get("kernel_sizes", [3, 5, 7])
-        self.pool_strategy = config.get("pool_strategy", "none")
+        self.base_channels = config.get("base_channels", 32)
+        self.kernel_size = config.get("kernel_size", 3)
 
-        self.conv_blocks = nn.ModuleList()
-        in_channels = self.input_channels
+        # AS: Simpele conv layers - vaste architectuur
+        self.conv1 = nn.Conv1d(self.input_channels, self.base_channels, kernel_size=self.kernel_size, padding=1)
+        self.bn1 = nn.BatchNorm1d(self.base_channels)
+        
+        self.conv2 = nn.Conv1d(self.base_channels, self.base_channels * 2, kernel_size=self.kernel_size, padding=1)
+        self.bn2 = nn.BatchNorm1d(self.base_channels * 2)
+        
+        self.conv3 = nn.Conv1d(self.base_channels * 2, self.base_channels * 4, kernel_size=self.kernel_size, padding=1)
+        self.bn3 = nn.BatchNorm1d(self.base_channels * 4)
+        
+        # AS: Optionele 4e layer
+        if self.num_conv_layers >= 4:
+            self.conv4 = nn.Conv1d(self.base_channels * 4, self.base_channels * 8, kernel_size=self.kernel_size, padding=1)
+            self.bn4 = nn.BatchNorm1d(self.base_channels * 8)
+        else:
+            self.conv4 = None
+            self.bn4 = None
+        
+        # AS: Optionele 5e layer
+        if self.num_conv_layers >= 5:
+            self.conv5 = nn.Conv1d(self.base_channels * 8, self.base_channels * 16, kernel_size=self.kernel_size, padding=1)
+            self.bn5 = nn.BatchNorm1d(self.base_channels * 16)
+        else:
+            self.conv5 = None
+            self.bn5 = None
 
-        for i in range(self.num_conv_layers):
-            if i in self.skip_layers:
-                continue
-            out_channels = int(self.min_out_channels + (self.max_out_channels - self.min_out_channels) * i / max(1, self.num_conv_layers - 1))
-            kernel_size = self.kernel_sizes[i % len(self.kernel_sizes)]
-            padding = kernel_size // 2
-
-            conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=padding)
-            bn = nn.BatchNorm1d(out_channels)
-            se = SqueezeExciteBlock(out_channels) if self.use_se else None
-            attn = AttentionBlock(out_channels) if self.use_attention else None
-
-            if self.pool_strategy == "max":
-                pool = nn.MaxPool1d(kernel_size=2, stride=2)
-            elif self.pool_strategy == "avg":
-                pool = nn.AdaptiveAvgPool1d(8)
-            else:
-                pool = None
-
-            block = nn.ModuleDict({
-                "conv": conv,
-                "bn": bn,
-                "se": se,
-                "attn": attn,
-                "pool": pool
-            })
-
-            self.conv_blocks.append(block)
-            in_channels = out_channels
-
-        self.flatten_dim = in_channels * 8 if self.pool_strategy == "avg" else None
-        self.fc1_size = config.get("fc1_size", 384)
-        self.fc2_size = config.get("fc2_size", 256)
-        self.fc3_size = config.get("fc3_size", 96)
-
-        self.fc1 = nn.Linear(self.flatten_dim, self.fc1_size)
+        # AS: Pooling layers
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # AS: Global average pooling om dimensie problemen te voorkomen
+        self.global_pool = nn.AdaptiveAvgPool1d(1)
+        
+        # AS: Vaste FC layers - geen berekeningen nodig
+        final_channels = self.base_channels * (2 ** (self.num_conv_layers - 1))
+        
+        self.fc1 = nn.Linear(final_channels, 256)
         self.dropout1 = nn.Dropout(self.dropout_rate)
-        self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
+        self.fc2 = nn.Linear(256, 128)
         self.dropout2 = nn.Dropout(self.dropout_rate)
-        self.fc3 = nn.Linear(self.fc2_size, self.fc3_size)
-        self.dropout3 = nn.Dropout(self.dropout_rate)
-        self.fc_final = nn.Linear(self.fc3_size, self.num_classes)
+        self.fc_final = nn.Linear(128, self.num_classes)
 
     def forward(self, x):
+        # AS: Input preprocessing
         if x.dim() == 2:
             x = x.unsqueeze(1)
         elif x.dim() == 3:
             x = x.transpose(1, 2)
 
-        for block in self.conv_blocks:
-            x = block["conv"](x)
-            x = block["bn"](x)
-            x = F.relu(x)
-            if block["se"]:
-                x = block["se"](x)
-            if block["attn"]:
-                x = block["attn"](x)
-            if block["pool"]:
-                x = block["pool"](x)
-
-        x = x.view(x.size(0), -1)
+        # AS: Conv layer 1 (altijd)
+        x = F.relu(self.bn1(self.conv1(x)))
+        
+        # AS: Conv layer 2 (altijd)
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.pool(x)
+        
+        # AS: Conv layer 3 (altijd)
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.pool(x)
+        
+        # AS: Conv layer 4 (optioneel)
+        if self.conv4 is not None:
+            x = F.relu(self.bn4(self.conv4(x)))
+            x = self.pool(x)
+        
+        # AS: Conv layer 5 (optioneel)
+        if self.conv5 is not None:
+            x = F.relu(self.bn5(self.conv5(x)))
+            x = self.pool(x)
+        
+        # AS: Global pooling - altijd 1D output ongeacht input
+        x = self.global_pool(x)  # Shape: [batch, channels, 1]
+        x = x.squeeze(-1)        # Shape: [batch, channels]
+        
+        # AS: FC layers
         x = F.relu(self.fc1(x))
         x = self.dropout1(x)
         x = F.relu(self.fc2(x))
         x = self.dropout2(x)
-        x = F.relu(self.fc3(x))
-        x = self.dropout3(x)
         x = self.fc_final(x)
+        
         return x
 
     def predict_proba(self, x):
+        """AS: Compatibiliteit"""
         logits = self.forward(x)
         return F.softmax(logits, dim=1)
