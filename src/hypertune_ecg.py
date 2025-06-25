@@ -73,26 +73,28 @@ if __name__ == "__main__":
     ray.init()
 
     config = {
-        # AS: Data parameters 
-        "data_dir": str(Path("../data").resolve()),  
-        "dataset_name": "heart_big", 
+        # Data parameters 
+        "data_dir": str(Path("../data").resolve()),
+        "dataset_name": "heart_big",
         "target_count": 15000,
         "batch_size": tune.choice([32, 64]),
-        
-        # Model basis - simpel houden
+
+        # Model parameters
         "input_channels": 1,
         "output": 5,
         "dropout": tune.uniform(0.2, 0.5),
-        
-        # AS: Parameters voor architectuur
-        "num_conv_layers": tune.choice([3, 4, 5]),  # Bepaalt welke conv layers gebruikt worden
-        "base_channels": tune.choice([16, 32, 64, 128, 256]), # Basis aantal channels
-        "kernel_size": tune.choice([3, 5, 7]),      # Kernel size voor alle conv layers
-        
-        # AS: Training parameters
+        "num_conv_layers": tune.choice([3, 4, 5, 6, 7]),   # allow up to 7 conv layers now
+        "base_channels": tune.choice([16, 32, 64, 128, 256]),
+        "kernel_size": tune.choice([3, 5, 7]),
+        # New: Skip connections and Attention flags
+        "use_skip": tune.choice([0, 1]),       # 0 = False, 1 = True
+        "use_attention": tune.choice([0, 1]),  # 0 = False, 1 = True
+
+        # Training parameters
         "lr": tune.loguniform(1e-4, 1e-2),
         "weight_decay": tune.loguniform(1e-5, 1e-3),
     }
+
 
     # AS: Ray Tune setup
     search_alg = HyperOptSearch()
