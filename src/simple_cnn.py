@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class SimpleCNN(nn.Module):
     """
-    Simpele CNN volgens de oorspronkelijke architectuur, maar met slimmere hyperparameter keuzes:
+    Simpele CNN met onderstaande structuur:
     
     INPUT
     Convolution -> Batch Norm -> Relu
@@ -15,18 +15,13 @@ class SimpleCNN(nn.Module):
     """
     
     def __init__(self, config):
-        super(SimpleCNN, self).__init__()
-        
-        # ============================================================
-        # SLIMMERE HYPERPARAMETER KEUZES
-        # ============================================================
-        
+        super(SimpleCNN, self).__init__()      
         self.num_classes = config.get('output', 5)
-        self.dropout_rate = config.get('dropout', 0.3)  # Verhoogd van 0.1 naar 0.3 voor betere regularization
+        self.dropout_rate = config.get('dropout', 0.3)  
         
-        # ============================================================
-        # CONVOLUTION LAYERS - SLIMMERE KERNEL GROOTTES
-        # ============================================================
+        # ==================
+        # CONVOLUTION LAYERS 
+        # ==================
         
         # Conv1: Grotere kernel (11 i.p.v. 7) om langere hartslag patronen te vangen
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=11, padding=5)
@@ -46,11 +41,11 @@ class SimpleCNN(nn.Module):
         self.bn4 = nn.BatchNorm1d(128)
         self.avgpool = nn.AdaptiveAvgPool1d(8)  # Behoud 8 voor global context
         
-        # ============================================================
-        # FULLY CONNECTED LAYERS - SLIMMERE GROOTTES
-        # ============================================================
+        # ======================
+        # FULLY CONNECTED LAYERS
+        # ======================
         
-        # Input size: 128 channels * 8 positions = 1024 (kleiner dan voorheen)
+        # Input size: 128 channels * 8 positions = 1024
         fc_input_size = 128 * 8
         
         # FC1: Kleiner (512 -> 384) om overfitting te voorkomen
@@ -79,9 +74,9 @@ class SimpleCNN(nn.Module):
         elif x.dim() == 3:
             x = x.transpose(1, 2)  # (batch, seq_len, 1) -> (batch, 1, seq_len)
             
-        # ============================================================
-        # CONVOLUTION PART - zelfde structuur, betere parameters
-        # ============================================================
+        # ===========
+        # CONVOLUTION
+        # ===========
         
         # Conv blok 1: Convolution -> Batch Norm -> ReLU
         x = self.conv1(x)
@@ -105,9 +100,9 @@ class SimpleCNN(nn.Module):
         x = F.relu(x)
         x = self.avgpool(x)  # Average pooling voor global context
         
-        # ============================================================
-        # FULLY CONNECTED PART - zelfde structuur, betere groottes
-        # ============================================================
+        # ===============
+        # FULLY CONNECTED
+        # ===============
         
         # Flatten voor fully connected layers
         x = x.view(x.size(0), -1)  # (batch, 128*8) = (batch, 1024)

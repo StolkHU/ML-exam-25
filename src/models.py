@@ -1,213 +1,123 @@
-from dataclasses import asdict, dataclass
-
 import torch
-from torch import nn
+import torch.nn as nn
+import torch.nn.functional as F
 
-
-class NeuralNetwork(nn.Module):
-    def __init__(
-        self, features: int, num_classes: int, units1: int, units2: int
-    ) -> None:
+class SqueezeExciteBlock(nn.Module):
+    def __init__(self, channels, reduction=16):
         super().__init__()
-        self.num_classes = num_classes
-        self.units1 = units1
-        self.units2 = units2
-        self.flatten = nn.Flatten()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(features, units1),
-            nn.ReLU(),
-            nn.Linear(units1, units2),
-            nn.ReLU(),
-            nn.Linear(units2, num_classes),
-        )
+        self.fc1 = nn.Linear(channels, channels // reduction)
+        self.fc2 = nn.Linear(channels // reduction, channels)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.flatten(x)
-        logits = self.linear_relu_stack(x)
-        return logits
-
-
-class CNN(nn.Module):
-    def __init__(
-        self,
-        features: int,
-        num_classes: int,
-        kernel_size: int,
-        filter1: int,
-        filter2: int,
-    ) -> None:
-        super().__init__()
-        self.num_classes = num_classes
-        self.kernel_size = kernel_size
-        self.filter1 = filter1
-        self.filter2 = filter2
-
-        self.convolutions = nn.Sequential(
-            nn.Conv2d(features, filter1, kernel_size=kernel_size, stride=1, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Conv2d(filter1, filter2, kernel_size=kernel_size, stride=1, padding=0),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Conv2d(filter2, 32, kernel_size=kernel_size, stride=1, padding=0),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-        )
-
-        self.dense = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, num_classes),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.convolutions(x)
-        logits = self.dense(x)
-        return logits
-
-
-@dataclass
-class CNNConfig:
-    matrixshape: tuple
-    batchsize: int
-    input_channels: int
-    hidden: int
-    kernel_size: int
-    maxpool: int
-    num_layers: int
-    num_classes: int
-    dropout: float = 0.0
-    batch_norm: bool = False
-    use_skip_connections: bool = False
-
-
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, batch_norm=False):  # ADRIAAN Added batch_norm parameter
-        super().__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, padding=1)
-        self.batch_norm = batch_norm  # ADRIAAN Store batch_norm flag
-        
-        if batch_norm:  # ADRIAAN Add conditional batch normalization
-            self.bn = nn.BatchNorm2d(out_channels)
-    
     def forward(self, x):
-        x = self.conv(x)
-        if self.batch_norm:  # ADRIAAN Apply batch norm if enabled
-            x = self.bn(x)
-        return x
+        batch, channels, length = x.size()
+        y = F.adaptive_avg_pool1d(x, 1).view(batch, channels)
+        y = F.relu(self.fc1(y))
+        y = torch.sigmoid(self.fc2(y)).view(batch, channels, 1)
+        return x * y.expand_as(x)
 
-
-class ResidualBlock(nn.Module):  # ADRIAAN Added entire ResidualBlock class for skip connections
-    """Residual block met skip connection"""
-    def __init__(self, channels, kernel_size, batch_norm=False, dropout=0.0):
+class AttentionBlock(nn.Module):
+    def __init__(self, channels):
         super().__init__()
-        self.conv1 = ConvBlock(channels, channels, kernel_size, batch_norm)
-        self.relu1 = nn.ReLU()
-        self.conv2 = ConvBlock(channels, channels, kernel_size, batch_norm)
-        self.relu2 = nn.ReLU()
-        
-        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else None  # ADRIAAN Added dropout to residual blocks
-        
+        self.query = nn.Conv1d(channels, channels, kernel_size=1)
+        self.key = nn.Conv1d(channels, channels, kernel_size=1)
+        self.value = nn.Conv1d(channels, channels, kernel_size=1)
+
     def forward(self, x):
-        # Skip connection: bewaar originele input
-        identity = x  # ADRIAAN Store input for skip connection
-        
-        # Eerste conv + relu
-        out = self.conv1(x)
-        out = self.relu1(out)
-        
-        # Dropout na eerste conv
-        if self.dropout:  # ADRIAAN Apply dropout if configured
-            out = self.dropout(out)
-        
-        # Tweede conv (geen relu hier)
-        out = self.conv2(out)
-        
-        # Skip connection: voeg originele input toe
-        out = out + identity  # ADRIAAN Add skip connection
-        
-        # ReLU na de skip connection
-        out = self.relu2(out)
-        
-        return out
+        Q = self.query(x)
+        K = self.key(x)
+        V = self.value(x)
+        attn_weights = torch.softmax(torch.bmm(Q.transpose(1, 2), K), dim=-1)
+        attn_output = torch.bmm(attn_weights, V.transpose(1, 2)).transpose(1, 2)
+        return attn_output
 
-
-class CNNblocks(nn.Module):
-    def __init__(self, config: CNNConfig) -> None:
+class ModularCNN(nn.Module):
+    def __init__(self, config):
         super().__init__()
-        self.config = asdict(config)
-        self.use_skip_connections = config.use_skip_connections  # ADRIAAN Store skip connections flag
-        
-        # Eerste conv layer (kan niet skip hebben omdat input channels anders zijn)
-        self.first_conv = ConvBlock(config.input_channels, config.hidden, config.kernel_size, 
-                                   batch_norm=config.batch_norm)  # ADRIAAN Added batch_norm to first conv
-        self.first_relu = nn.ReLU()
-        
-        # Bouw de layers
-        self.layers = nn.ModuleList()  # ADRIAAN Changed from convolutions to layers for flexibility
-        pool = config.maxpool
-        num_maxpools = 0
-        
-        for i in range(config.num_layers):
-            if self.use_skip_connections:  # ADRIAAN Added conditional skip connections
-                # Gebruik residual blocks
-                self.layers.append(
-                    ResidualBlock(config.hidden, config.kernel_size, 
-                                config.batch_norm, config.dropout)  # ADRIAAN Use ResidualBlock for skip connections
-                )
+        self.num_classes = config.get("output", 5)
+        self.dropout_rate = config.get("dropout", 0.3)
+        self.use_se = config.get("squeeze_excite", False)
+        self.use_attention = config.get("attention", False)
+        self.skip_layers = config.get("skip_layers", [])
+        self.input_channels = config.get("input_channels", 1)
+        self.num_conv_layers = config.get("num_conv_layers", 4)
+        self.min_out_channels = config.get("min_out_channels", 32)
+        self.max_out_channels = config.get("max_out_channels", 128)
+        self.kernel_sizes = config.get("kernel_sizes", [3, 5, 7])
+        self.pool_strategy = config.get("pool_strategy", "none")
+
+        self.conv_blocks = nn.ModuleList()
+        in_channels = self.input_channels
+
+        for i in range(self.num_conv_layers):
+            if i in self.skip_layers:
+                continue
+            out_channels = int(self.min_out_channels + (self.max_out_channels - self.min_out_channels) * i / max(1, self.num_conv_layers - 1))
+            kernel_size = self.kernel_sizes[i % len(self.kernel_sizes)]
+            padding = kernel_size // 2
+
+            conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=padding)
+            bn = nn.BatchNorm1d(out_channels)
+            se = SqueezeExciteBlock(out_channels) if self.use_se else None
+            attn = AttentionBlock(out_channels) if self.use_attention else None
+
+            if self.pool_strategy == "max":
+                pool = nn.MaxPool1d(kernel_size=2, stride=2)
+            elif self.pool_strategy == "avg":
+                pool = nn.AdaptiveAvgPool1d(8)
             else:
-                # Normale conv blocks
-                layer_seq = [
-                    ConvBlock(config.hidden, config.hidden, config.kernel_size,
-                             batch_norm=config.batch_norm),  # ADRIAAN Added batch_norm parameter
-                    nn.ReLU()
-                ]
-                
-                if config.dropout > 0:  # ADRIAAN Added conditional dropout
-                    layer_seq.append(nn.Dropout2d(config.dropout))
-                
-                self.layers.append(nn.Sequential(*layer_seq))  # ADRIAAN Create sequential layer
-            
-            # Maxpool elke 2e layer
-            if i % 3 == 0: # ADRIAAN: naar 3 gezet voor 11-laags RESNET
-                num_maxpools += 1
-                self.layers.append(nn.MaxPool2d(pool, pool))
+                pool = None
 
-        # Bereken matrix size
-        matrix_size = (config.matrixshape[0] // (pool**num_maxpools)) * (
-            config.matrixshape[1] // (pool**num_maxpools)
-        )
-        print(f"Calculated matrix size: {matrix_size}")
-        print(f"Calculated flatten size: {matrix_size * config.hidden}")
-        
-        # Dense layers
-        dense_layers = [nn.Flatten(), nn.Linear(matrix_size * config.hidden, config.hidden)]
-        
-        if config.batch_norm:  # ADRIAAN Added conditional batch norm to dense layers
-            dense_layers.append(nn.BatchNorm1d(config.hidden))
-        
-        dense_layers.append(nn.ReLU())
-        
-        if config.dropout > 0:  # ADRIAAN Added conditional dropout to dense layers
-            dense_layers.append(nn.Dropout(config.dropout))
-            
-        dense_layers.append(nn.Linear(config.hidden, config.num_classes))
-        
-        self.dense = nn.Sequential(*dense_layers)
+            block = nn.ModuleDict({
+                "conv": conv,
+                "bn": bn,
+                "se": se,
+                "attn": attn,
+                "pool": pool
+            })
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # ADRIAAN Added missing forward method
-        """Forward pass door het netwerk"""
-        # Eerste conv layer
-        x = self.first_conv(x)
-        x = self.first_relu(x)
-        
-        # Door alle andere layers (met of zonder skip connections)
-        for layer in self.layers:  # ADRIAAN Changed iteration to work with new layer structure
-            x = layer(x)
-        
-        # Door de dense layers
-        x = self.dense(x)
+            self.conv_blocks.append(block)
+            in_channels = out_channels
+
+        self.flatten_dim = in_channels * 8 if self.pool_strategy == "avg" else None
+        self.fc1_size = config.get("fc1_size", 384)
+        self.fc2_size = config.get("fc2_size", 256)
+        self.fc3_size = config.get("fc3_size", 96)
+
+        self.fc1 = nn.Linear(self.flatten_dim, self.fc1_size)
+        self.dropout1 = nn.Dropout(self.dropout_rate)
+        self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
+        self.dropout2 = nn.Dropout(self.dropout_rate)
+        self.fc3 = nn.Linear(self.fc2_size, self.fc3_size)
+        self.dropout3 = nn.Dropout(self.dropout_rate)
+        self.fc_final = nn.Linear(self.fc3_size, self.num_classes)
+
+    def forward(self, x):
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+        elif x.dim() == 3:
+            x = x.transpose(1, 2)
+
+        for block in self.conv_blocks:
+            x = block["conv"](x)
+            x = block["bn"](x)
+            x = F.relu(x)
+            if block["se"]:
+                x = block["se"](x)
+            if block["attn"]:
+                x = block["attn"](x)
+            if block["pool"]:
+                x = block["pool"](x)
+
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = self.dropout1(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout2(x)
+        x = F.relu(self.fc3(x))
+        x = self.dropout3(x)
+        x = self.fc_final(x)
         return x
+
+    def predict_proba(self, x):
+        logits = self.forward(x)
+        return F.softmax(logits, dim=1)

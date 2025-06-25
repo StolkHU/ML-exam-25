@@ -1,0 +1,30 @@
+input_channels = 1
+output = 5
+dropout = 0.3
+squeeze_excite = true
+attention = true
+skip_layers = [2]
+
+[[conv_layers]]
+out_channels = 32
+kernel_size = 11
+pool = "none"
+
+[[conv_layers]]
+out_channels = 64
+kernel_size = 7
+pool = "max"
+
+[[conv_layers]]
+out_channels = 96
+kernel_size = 5
+pool = "none"
+
+[[conv_layers]]
+out_channels = 128
+kernel_size = 3
+pool = "avg"
+
+"fc1_size": tune.choice([256, 384, 512]),
+"fc2_size": tune.choice([128, 256, 384]),
+"fc3_size": tune.choice([64, 96, 128]),
