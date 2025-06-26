@@ -1,0 +1,19 @@
+{
+  "data_dir": "/home/azureuser/MADS-exam-25/data",
+  "dataset_name": "heart_big",
+  "target_count": 5000,
+  "batch_size": 32,
+  "input_channels": 1,
+  "output": 5,
+  "dropout": 0.2498046653624248,
+  "num_conv_layers": 5,
+  "base_channels": 16,
+  "kernel_size": 5,
+  "use_skip": 0,
+  "use_attention": 1,
+  "fc1_size": 256,
+  "fc2_size": 256,
+  "fc3_size": 96,
+  "lr": 0.0016523137989897705,
+  "weight_decay": 0.0001
+}
