@@ -20,6 +20,8 @@ def train(config):
     """Training functie - simpel en direct"""
     # AS: Haal data streamers op met config parameters
     trainstreamer, validstreamer = get_heart_streamers(config)
+
+    loss_fn = torch.nn.CrossEntropyLoss()
     
     # AS: Maak model direct met config
     model = ModularCNN(config)
@@ -52,12 +54,12 @@ def train(config):
         epochs=MAX_EPOCHS,
         metrics=metric_list,
         logdir=Path("logs/heart1D"),
-        train_steps=steps_per_mini_epoch,  # Kleiner aantal steps!
+        train_steps=steps_per_mini_epoch,  
         valid_steps=len(validstreamer),
-        reporttypes=[ReportTypes.RAY],
+        reporttypes=[ReportTypes.RAY], 
         scheduler_kwargs={"factor": 0.5, "patience": 3},
         optimizer_kwargs={"lr": config["lr"], "weight_decay": config["weight_decay"]},
-        earlystop_kwargs=None,  # Geen early stopping met korte runs
+        earlystop_kwargs={"patience" : 4, "verbose" : True, "delta": 0.005, "save" : True} ,  ## Early stopping erbij!
     )
 
     # AS: Trainer setup
@@ -86,26 +88,25 @@ if __name__ == "__main__":
         # Data parameters 
         "data_dir": str(Path("../data").resolve()),
         "dataset_name": "heart_big", 
-        "target_count": 5000,  # VEEL minder data voor snelheid
-        "batch_size": tune.choice([32]),  # 64 eruit gehaald
+        "target_count": 5000,  
+        "batch_size": tune.choice([32]),  
         
         # Model parameters - klein vs medium
         "input_channels": 1, 
         "output": 5,  
-        "dropout": tune.uniform(0.15, 0.25),  # Meer dropout ===
+        "dropout": tune.uniform(0.2, 0.4),  # Meer dropout ===
         "num_conv_layers": tune.choice([4, 5]), 
-        "base_channels": tune.choice([16, 32, 64]),  # Kleinere modellen
-        "kernel_size": tune.choice([3, 5, 7]),  
+        "base_channels": tune.choice([32, 64]),  # Kleinere modellen
+        "kernel_size": tune.choice([5, 7]),  
         
         # Architecture flags - deze houden we  
-        "use_skip": tune.choice([0, 1]),  # Belangrijk voor diepe nets
-        "use_attention": tune.choice([0, 1]),  # Kan helpen bij complexiteit
+        "use_skip": tune.choice([1]),  # Belangrijk voor diepe nets
+        "use_attention": tune.choice([1]),  # Kan helpen bij complexiteit
         
         # FC layer ratios - ook extremen
-        "fc1_size": tune.choice([256, 512]),
+        "fc1_size": tune.choice([512, 256]),
         "fc2_size": tune.choice([128, 256]),
         "fc3_size": tune.choice([64, 96]),
-
         
         # Training parameters
         "lr": tune.loguniform(1e-3, 3e-3),  # Hogere LR voor sneller trainen
@@ -115,7 +116,6 @@ if __name__ == "__main__":
     # HyperOpt search
     search_alg = HyperOptSearch()
     
-    # Geen scheduler - laat alle trials gewoon draaien
     scheduler = None  # Was AsyncHyperBandScheduler
 
     reporter = CLIReporter()
