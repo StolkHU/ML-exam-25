@@ -13,9 +13,9 @@ from src import metrics
 from mltrainer import Trainer, TrainerSettings, ReportTypes
 
 # KORTE EN STABIELE SETTINGS
-NUM_SAMPLES = 20     # Genoeg voor goede variatie
-MAX_EPOCHS = 10       # ← VEEL KORTER: was 12, nu 8
-STEPS_PER_EPOCH = 2
+NUM_SAMPLES = 25     # Genoeg voor goede variatie
+MAX_EPOCHS = 20       # ← VEEL KORTER: was 12, nu 8
+STEPS_PER_EPOCH = 3
 
 def train(config):
     trainstreamer, validstreamer = get_heart_streamers(config)
@@ -28,7 +28,6 @@ def train(config):
     # Minimale metrics voor snelheid
     metric_list = [
         metrics.Accuracy(),
-        metrics.Recall(average="weighted"),   # Alleen je hoofdmetric
         metrics.Recall(average="macro")
     ]
 
@@ -44,7 +43,7 @@ def train(config):
         train_steps=steps_per_mini_epoch,  
         valid_steps=len(validstreamer) // 3,  # Ook validation sneller
         reporttypes=[ReportTypes.RAY], 
-        scheduler_kwargs={"factor": 0.7, "patience": 2},       # ← VROEGER STOPPEN: patience 2
+        scheduler_kwargs={"factor": 0.8, "patience": 3},       # ← VROEGER STOPPEN: patience 2
         optimizer_kwargs={
             "lr": config["lr"], 
             "weight_decay": config["weight_decay"],
@@ -121,18 +120,17 @@ if __name__ == "__main__":
         "weight_decay": tune.choice([5e-5, 1e-4, 2e-4]),      # ← Standard range
     }
     
-    search_alg = HyperOptSearch(metric="Recall_weighted", mode="max")
+    search_alg = HyperOptSearch(metric="Recall_macro", mode="max")
     
     # ZEER AGRESSIEVE SCHEDULER - stop oscillerende models SNEL
     scheduler = AsyncHyperBandScheduler(
         max_t=MAX_EPOCHS,
-        grace_period=3,         # ← ZEER KORT: stop na 3 epochs als slecht
-        reduction_factor=4      # ← AGRESSIEF: gooi veel configs weg
+        grace_period=6,         # ← ZEER KORT: stop na 3 epochs als slecht
+        reduction_factor=3      # ← AGRESSIEF: gooi veel configs weg
     )
 
     reporter = CLIReporter()
     reporter.add_metric_column("Accuracy")
-    reporter.add_metric_column("Recall_weighted")
     reporter.add_metric_column("Recall_macro")
 
     analysis = tune.run(
@@ -155,14 +153,14 @@ if __name__ == "__main__":
         resume="AUTO"
     )
     
-    best_config = analysis.get_best_config(metric="Recall_weighted", mode="max")
+    best_config = analysis.get_best_config(metric="Recall_macro", mode="max")
     print("\nBESTE STABIELE CONFIGURATIE:")
     print("="*50)
     for key, value in best_config.items():
         if not key.startswith('data_'):
             print(f"{key}: {value}")
     
-    print(f"\nBeste Weighted Recall: {analysis.best_result['Recall_weighted']:.4f}")
+    print(f"\nBeste Recall: {analysis.best_result['Recall_macro']:.4f}")
     
     # Sla alleen de beste op voor finale training
     import json
