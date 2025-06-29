@@ -266,7 +266,7 @@ if __name__ == "__main__":
         progress_reporter=reporter,
         storage_path=str(Path("logs/focused_long_training").resolve()),
         verbose=2,
-        max_concurrent_trials=1,  # Een tegelijk voor stabiele training
+        max_concurrent_trials=3,  # Een tegelijk voor stabiele training
         raise_on_failed_trial=False
     )
 
