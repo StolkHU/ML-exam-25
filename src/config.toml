@@ -1,30 +1,62 @@
+[model]
+data_dir = "../data"
+dataset_name = "heart_big"
+target_count = 5000
+batch_size = 32
 input_channels = 1
 output = 5
+# Default waarden die kunnen worden geoverschreven door hyperparameters
 dropout = 0.3
-squeeze_excite = true
-attention = true
-skip_layers = [2]
+lr = 0.001
+weight_decay = 1e-4
 
-[[conv_layers]]
-out_channels = 32
-kernel_size = 11
-pool = "none"
+[training]
+epochs = 20
+patience = 5
+logdir = "logs/ray_tune"
 
-[[conv_layers]]
-out_channels = 64
-kernel_size = 7
-pool = "max"
+[ray_tune]
+metric = "accuracy"
+mode = "max"
+num_samples = 10
+max_t = 20
+grace_period = 5
+local_dir = "./ray_results"  # Dit wordt nu storage_path
 
-[[conv_layers]]
-out_channels = 96
-kernel_size = 5
-pool = "none"
+[ray_tune.resources_per_trial]
+cpu = 2
+gpu = 0.25
 
-[[conv_layers]]
-out_channels = 128
-kernel_size = 3
-pool = "avg"
+# Hyperparameters om te tunen
+[hyperparameters.lr]
+type = "loguniform"
+min = 1e-5
+max = 1e-2
 
-"fc1_size": tune.choice([256, 384, 512]),
-"fc2_size": tune.choice([128, 256, 384]),
-"fc3_size": tune.choice([64, 96, 128]),
+[hyperparameters.dropout]
+type = "uniform" 
+min = 0.1
+max = 0.5
+
+[hyperparameters.weight_decay]
+type = "loguniform"
+min = 1e-6
+max = 1e-3
+
+
+[hyperparameters.batch_size]
+type = "choice"
+values = [16, 32, 64]
+
+[hyperparameters.fc1_size]
+type = "choice"
+values = [256, 384, 512]
+
+# [hyperparameters.conv1_channels]
+# type = "choice"
+# values = [16, 32, 64]
+
+# Voor vaste waarde (niet tunen maar wel gebruiken)
+# [hyperparameters.momentum]
+# type = "fixed"
+# value = 0.9

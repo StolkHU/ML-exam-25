@@ -1,18 +1,19 @@
 
 # hyperparameter_optimization.py - Aangepaste optimalisatie
+import json
 from pathlib import Path
+
+import torch
+from loguru import logger
+from mltrainer import ReportTypes, Trainer, TrainerSettings
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import AsyncHyperBandScheduler
 from ray.tune.search.hyperopt import HyperOptSearch
-import torch
-from loguru import logger
-import json
 
-from src.best_model_copy import ModularCNN
 from load_heart_data import get_heart_streamers
 from src import metrics
-from mltrainer import Trainer, TrainerSettings, ReportTypes
+from src.best_model_copy import ModularCNN
 
 NUM_SAMPLES = 20
 MAX_EPOCHS = 15
@@ -68,7 +69,7 @@ def train(config):
         train_steps=len(trainstreamer),
         valid_steps=len(validstreamer),
         reporttypes=[ReportTypes.RAY],
-        scheduler_kwargs={"factor": 0.1, "patience": 3},  # Aangepast zoals gevraagd
+        scheduler_kwargs={"factor": 0.1, "patience": 3},  
         optimizer_kwargs={
             "lr": config["lr"], 
             "weight_decay": config["weight_decay"]
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     import ray
     ray.init()
 
-    # Aangepaste config volgens jouw wensen
+    # Config om te tunen:
     config = {
         # Data parameters
         "data_dir": str(Path("../data").resolve()),
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         "fc3_size": tune.choice([80, 96, 128]),
         
         # Lagere dropout zoals gevraagd
-        "dropout": tune.uniform(0.1, 0.25),  # Veel lager dan voorheen (was 0.35-0.5)
+        "dropout": tune.uniform(0.1, 0.25),  
         
         # Architecture features - attention altijd false
         "squeeze_excite": tune.choice([False, True]),
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     print("="*60)
     
     # Show the winning architecture met grote kernel sizes
-    print(f"\n🏗️  Architecture (grote kernels voor ECG):")
+    print("\n🏗️  Architecture (grote kernels voor ECG):")
     for i in range(4):
         channels = best_config[f"layer_{i}_out_channels"]
         kernel = best_config[f"layer_{i}_kernel_size"]
@@ -201,18 +202,18 @@ if __name__ == "__main__":
     fc_sizes = [best_config["fc1_size"], best_config["fc2_size"], best_config["fc3_size"], 5]
     print(f"   FC layers: {' → '.join(map(str, fc_sizes))}")
     
-    print(f"\n⚙️  Training (aangepast):")
+    print("\n⚙️  Training (aangepast):")
     print(f"   Learning rate:   {best_config['lr']:.4f}")
     print(f"   Weight decay:    {best_config['weight_decay']:.5f}")
     print(f"   Dropout:         {best_config['dropout']:.3f} (lager!)")
-    print(f"   LR factor:       0.1 (agressiever)")
-    print(f"   Patience:        3 (normaal)")
+    print("   LR factor:       0.1 (agressiever)")
+    print("   Patience:        3 (normaal)")
     
-    print(f"\n🔧 Features (vereenvoudigd):")
+    print("\n🔧 Features (vereenvoudigd):")
     print(f"   Squeeze-Excite:  {best_config['squeeze_excite']}")
-    print(f"   Attention:       False (uitgeschakeld)")
-    print(f"   Skip layers:     Weggehaald (alleen residual blocks)")
-    print(f"   Label smoothing: Weggehaald (te complex)")
+    print("   Attention:       False (uitgeschakeld)")
+    print("   Skip layers:     Weggehaald (alleen residual blocks)")
+    print("   Label smoothing: Weggehaald (te complex)")
     
     # Save results
     results = {
@@ -236,7 +237,7 @@ if __name__ == "__main__":
     with open("improved_ecg_cnn_results.json", "w") as f:
         json.dump(results, f, indent=2)
     
-    print(f"\n📁 Complete results saved to 'improved_ecg_cnn_results.json'")
+    print("\n📁 Complete results saved to 'improved_ecg_cnn_results.json'")
     print(f"🎯 Final Score: {best_result['Recall_macro']*100:.2f}% Recall")
     print("✨ Grote kernels + lagere dropout + eenvoudiger architectuur!")
 
