@@ -7,19 +7,19 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 
-from src.models import ModularCNN
+from src.model_2 import ModularCNN
 from load_heart_data import get_heart_streamers
 from src import metrics
 from mltrainer import Trainer, TrainerSettings, ReportTypes
 
 MAX_EPOCHS = 40
-PATIENCE = 5
+PATIENCE = 15
 
 def train_best_config():
     best_config = {
         "data_dir": str(Path("../data").resolve()),
         "dataset_name": "heart_big",
-        "target_count": 15000,
+        "target_count": 20000,
         "batch_size": 32,
         "input_channels": 1,
         "output": 5,
@@ -39,8 +39,8 @@ def train_best_config():
         "fc1_size": 256,
         "fc2_size": 256,
         "fc3_size": 96,
-        "dropout": 0.1,
-        "squeeze_excite": False,
+        "dropout": 0.42,
+        "squeeze_excite": True,
         "label_smoothing": 0.0,
         "lr": 0.001,
         "weight_decay": 1e-4
@@ -89,7 +89,7 @@ def train_best_config():
         train_steps=len(trainstreamer),
         valid_steps=len(validstreamer),
         reporttypes=[ReportTypes.TENSORBOARD],
-        scheduler_kwargs={"factor": 0.1, "patience": 3},
+        scheduler_kwargs={"factor": 0.2, "patience": 5},
         optimizer_kwargs={
             "lr": best_config["lr"], 
             "weight_decay": best_config["weight_decay"]

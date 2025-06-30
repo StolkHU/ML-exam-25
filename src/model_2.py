@@ -1,4 +1,4 @@
-# model.py - Getuned ModularCNN op basis van beste 96.7% config
+# model.py - Fixed ModularCNN with proper dimension handling
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ class SqueezeExciteBlock(nn.Module):
         return x * y
 
 class ResidualBlock(nn.Module):
-    """Residual connection for deeper networks - geoptimaliseerd"""
+    """Residual connection for deeper networks"""
     def __init__(self, in_channels, out_channels, kernel_size, use_se=False):
         super().__init__()
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size//2)
@@ -27,10 +27,10 @@ class ResidualBlock(nn.Module):
         self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, padding=kernel_size//2)
         self.bn2 = nn.BatchNorm1d(out_channels)
         
-        # Skip connection - alleen als channels veranderen
+        # Skip connection
         self.skip_connection = nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
         
-        # Alleen SE blocks (attention blocks weggehaald)
+        # Attention mechanisms (alleen SE nu)
         self.se = SqueezeExciteBlock(out_channels) if use_se else None
         
     def forward(self, x):
@@ -51,29 +51,22 @@ class ModularCNN(nn.Module):
         self.config = config
         self.input_channels = config["input_channels"]
         self.output = config["output"]
-        self.dropout = config.get("dropout", 0.42)  # Default naar beste waarde
+        self.dropout = config.get("dropout", 0.15)
         self.squeeze_excite = config.get("squeeze_excite", False)
-        
-        # Skip layers mechanisme VOLLEDIG weggehaald
         self.conv_layers_config = config["conv_layers"]
         self.fc1_size = config["fc1_size"]
         self.fc2_size = config["fc2_size"]
         self.fc3_size = config["fc3_size"]
         
-        # Use residual connections for deeper networks (behouden)
+        # Use residual connections for deeper networks
         self.use_residual = config.get("use_residual", len(self.conv_layers_config) > 3)
         
         # Build improved architecture
         self.conv_layers = self._build_conv_layers()
         
-        # Get flatten dimension with dummy forward pass
-        with torch.no_grad():
-            dummy_input = torch.zeros(1, self.input_channels, 500)
-            dummy_output = self._forward_conv_layers(dummy_input)
-            self.flatten_dim = dummy_output.view(1, -1).size(1)
-        
-        # Improved FC layers with batch normalization
-        self.fc1 = nn.Linear(self.flatten_dim, self.fc1_size)
+        # IMPORTANT: Use LazyLinear to automatically determine input size
+        # This avoids dimension mismatch issues
+        self.fc1 = nn.LazyLinear(self.fc1_size)
         self.bn_fc1 = nn.BatchNorm1d(self.fc1_size)
         self.dropout1 = nn.Dropout(self.dropout)
         
@@ -83,18 +76,14 @@ class ModularCNN(nn.Module):
         
         self.fc3 = nn.Linear(self.fc2_size, self.fc3_size)
         self.bn_fc3 = nn.BatchNorm1d(self.fc3_size)
-        self.dropout3 = nn.Dropout(self.dropout * 0.5)  # Less dropout before final layer
+        self.dropout3 = nn.Dropout(self.dropout * 0.5)
         
         self.output_layer = nn.Linear(self.fc3_size, self.output)
-        
-        # Initialize weights
-        self._initialize_weights()
         
     def _build_conv_layers(self):
         layers = nn.ModuleList()
         in_channels = self.input_channels
         
-        # Skip layers mechanisme VOLLEDIG weggehaald
         for i, layer_cfg in enumerate(self.conv_layers_config):
             out_channels = layer_cfg["out_channels"]
             kernel_size = layer_cfg["kernel_size"]
@@ -125,12 +114,6 @@ class ModularCNN(nn.Module):
             
         return layers
     
-    def _forward_conv_layers(self, x):
-        """Forward pass through conv layers only"""
-        for layer in self.conv_layers:
-            x = layer(x)
-        return x
-    
     def _initialize_weights(self):
         """Improved weight initialization"""
         for m in self.modules():
@@ -141,7 +124,7 @@ class ModularCNN(nn.Module):
             elif isinstance(m, nn.BatchNorm1d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
+            elif isinstance(m, nn.Linear) and not isinstance(m, nn.LazyLinear):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 nn.init.constant_(m.bias, 0)
     
@@ -152,11 +135,18 @@ class ModularCNN(nn.Module):
         elif x.dim() == 3 and x.size(1) != self.input_channels:
             x = x.transpose(1, 2)
         
+        # Debug: print shape before conv layers
+        # print(f"Input shape to conv layers: {x.shape}")
+        
         # Conv layers
-        x = self._forward_conv_layers(x)
+        for i, layer in enumerate(self.conv_layers):
+            x = layer(x)
+            # Debug: print shape after each layer
+            # print(f"After layer {i}: {x.shape}")
         
         # Flatten and FC layers with improved normalization
         x = x.view(x.size(0), -1)
+        # print(f"Flattened shape: {x.shape}")
         
         x = F.relu(self.bn_fc1(self.fc1(x)))
         x = self.dropout1(x)
