@@ -1,0 +1,12 @@
+{
+  "experiment_type": "focused_long_training",
+  "max_epochs": 25,
+  "num_models": 5,
+  "winner": {
+    "model_name": "exact_replica",
+    "recall": 0.9464991690998903,
+    "accuracy": 0.9472313596491229,
+    "f1_score": 0.8214440113351912,
+    "configuration": {
+      "model_name": "exact_replica",
+      "layer_0_out_channels": 

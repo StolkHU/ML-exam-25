@@ -10,8 +10,8 @@ from mltrainer import (ReportTypes, Trainer,  # AS <custom training framework>
                        TrainerSettings)
 from sklearn.metrics import classification_report, confusion_matrix
 
-from load_heart_data import get_heart_streamers  # AS <custom data loader>
 from src import metrics  # AS <custom metrics module>
+from src.load_heart_data import get_heart_streamers  # AS <custom data loader>
 from src.model_ecg import SimpleCNN  # AS <import of custom model>
 
 MAX_EPOCHS = 50
