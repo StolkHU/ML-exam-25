@@ -1,9 +1,9 @@
 [project]
-name = "MADS-exam-25"
+name = "MADS-exam-AdriaanS"
 version = "0.1.0"
 description = "Code for MADS deep learning exam"
 authors = [
-    {name = "Raoul Grouls", email = "Raoul.Grouls@han.nl"},
+    { name = "Adriaan Stolk" },
 ]
 dependencies = [
     "mads-datasets>=0.3.10",
@@ -21,19 +21,23 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "imbalanced-learn>=0.12.4",
     "toml>=0.10.2",
+    "isort>=6.0.1",
+    "black>=25.1.0",
+    "mypy>=1.16.1",
+    "ruff>=0.12.1",
 ]
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 
-[dependency-groups]
-dev = [
+[tool.uv.dependency-groups.dev]
+dependencies = [
     "isort>=5.13.2",
     "jupyter>=1.1.1",
     "mypy>=1.14.1",
     "notebooktester>=0.2.1",
     "pyright>=1.1.391",
-    "ruff>=0.9.1",
+    "ruff>=0.4.4"
 ]
 
 [build-system]
@@ -44,10 +48,16 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/"]
+packages = ["src"]
 
 [[tool.uv.index]]
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "N"]
+
+
+[tool.ruff]
+ignore = ["N812", "N806"]
