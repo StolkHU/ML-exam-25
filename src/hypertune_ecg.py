@@ -12,7 +12,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 from load_heart_data import get_heart_streamers  # AS <custom data loader>
 from src import metrics  # AS <custom metrics module>
-from src.model import SimpleCNN  # AS <import of custom model>
+from src.model_ecg import SimpleCNN  # AS <import of custom model>
 
 MAX_EPOCHS = 50
 PATIENCE = 10
@@ -50,10 +50,10 @@ def train_simplecnn() -> Tuple[torch.nn.Module, Any]:
     settings = TrainerSettings(
         epochs=MAX_EPOCHS,
         metrics=metric_list,
-        logdir=Path("logs/simplecnn"),  # AS <custom log directory>
+        logdir=Path("logs/CNN_Arrythmea"),  # AS <custom log directory>
         train_steps=len(trainstreamer),
         valid_steps=len(validstreamer),
-        reporttypes=[ReportTypes.TENSORBOARD],  # AS <custom reporting>
+        reporttypes=[ReportTypes.TENSORBOARD],  # AS <custom reporting>, aan te vullen met RAY (zoals ook in de hypertune scripts)
         scheduler_kwargs={"factor": 0.1, "patience": 5},
         optimizer_kwargs={
             "lr": config["lr"],
@@ -128,7 +128,7 @@ def generate_confusion_matrix(model: torch.nn.Module, teststreamer: Any) -> Dict
     ax2.set_ylabel('Actual')
 
     plt.tight_layout()
-    plt.savefig('confusion_matrix_simplecnn_highdropout.png', dpi=300, bbox_inches='tight')  # AS <custom filename>
+    plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')  # AS <custom filename>
     plt.show()
 
     report = classification_report(y_flat, yhat_flat, target_names=class_names,
@@ -142,7 +142,7 @@ def generate_confusion_matrix(model: torch.nn.Module, teststreamer: Any) -> Dict
         "total_samples": len(y_flat)
     }
 
-    with open("final_results_simplecnn.json", "w") as f:  # AS <custom output file>
+    with open("final_results.json", "w") as f:  # AS <custom output file>
         json.dump(results, f, indent=2)
 
     return results
