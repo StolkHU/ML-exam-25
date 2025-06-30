@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 
-from src.simple_cnn_se import SimpleCNN  # Assuming SimpleCNN is saved in src/model_1.py
+from src.model_final import SimpleCNN  # Assuming SimpleCNN is saved in src/model_1.py
 from load_heart_data import get_heart_streamers
 from src import metrics
 from mltrainer import Trainer, TrainerSettings, ReportTypes
