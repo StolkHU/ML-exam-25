@@ -10,8 +10,8 @@ from mltrainer import (ReportTypes, Trainer,  # AS <custom training framework>
                        TrainerSettings)
 from sklearn.metrics import classification_report, confusion_matrix
 
+from load_heart_data import get_heart_streamers  # AS <custom data loader>
 from src import metrics  # AS <custom metrics module>
-from src.load_heart_data import get_heart_streamers  # AS <custom data loader>
 from src.model_ecg import SimpleCNN  # AS <import of custom model>
 
 MAX_EPOCHS = 50
@@ -34,7 +34,7 @@ def train_simplecnn() -> Tuple[torch.nn.Module, Any]:
     }
 
     trainstreamer, validstreamer = get_heart_streamers(config)  # AS <custom data streaming>
-    model = SimpleCNN("config.toml")  # AS <custom model initialization> # Was config, maar met de .toml nu naar de toml verwezen
+    model = SimpleCNN("config.toml")  # AS <custom model initialization> should be config
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
