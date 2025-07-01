@@ -1,0 +1,206 @@
+{
+  "confusion_matrix": [
+    [
+      17809,
+      197,
+      60,
+      31,
+      17
+    ],
+    [
+      44,
+      500,
+      9,
+      2,
+      1
+    ],
+    [
+      17,
+      5,
+      1406,
+      20,
+      0
+    ],
+    [
+      4,
+      0,
+      13,
+      144,
+      1
+    ],
+    [
+      5,
+      2,
+      2,
+      1,
+      1598
+    ]
+  ],
+  "confusion_matrix_normalized": [
+    [
+      0.9831621949873026,
+      0.010875565860660262,
+      0.0033123550844650546,
+      0.0017113834603069448,
+      0.0009385006072650988
+    ],
+    [
+      0.07913669064748201,
+      0.8992805755395683,
+      0.01618705035971223,
+      0.0035971223021582736,
+      0.0017985611510791368
+    ],
+    [
+      0.011740331491712707,
+      0.003453038674033149,
+      0.9709944751381215,
+      0.013812154696132596,
+      0.0
+    ],
+    [
+      0.024691358024691357,
+      0.0,
+      0.08024691358024691,
+      0.8888888888888888,
+      0.006172839506172839
+    ],
+    [
+      0.003109452736318408,
+      0.0012437810945273632,
+      0.0012437810945273632,
+      0.0006218905472636816,
+      0.9937810945273632
+    ]
+  ],
+  "classification_report": {
+    "N": {
+      "precision": 0.9960847922143297,
+      "recall": 0.9831621949873026,
+      "f1-score": 0.9895813074764538,
+      "support": 18114.0
+    },
+    "S": {
+      "precision": 0.7102272727272727,
+      "recall": 0.8992805755395683,
+      "f1-score": 0.7936507936507936,
+      "support": 556.0
+    },
+    "V": {
+      "precision": 0.9436241610738255,
+      "recall": 0.9709944751381215,
+      "f1-score": 0.9571136827773996,
+      "support": 1448.0
+    },
+    "F": {
+      "precision": 0.7272727272727273,
+      "recall": 0.8888888888888888,
+      "f1-score": 0.8,
+      "support": 162.0
+    },
+    "Q": {
+      "precision": 0.9882498453927026,
+      "recall": 0.9937810945273632,
+      "f1-score": 0.9910077519379845,
+      "support": 1608.0
+    },
+    "accuracy": 0.9803088450292398,
+    "macro avg": {
+      "precision": 0.8730917597361716,
+      "recall": 0.9472214458162489,
+      "f1-score": 0.9062707071685263,
+      "support": 21888.0
+    },
+    "weighted avg": {
+      "precision": 0.9827877379500767,
+      "recall": 0.9803088450292398,
+      "f1-score": 0.9811580191281193,
+      "support": 21888.0
+    }
+  },
+  "class_names": [
+    "N",
+    "S",
+    "V",
+    "F",
+    "Q"
+  ],
+  "total_samples": 21888,
+  "config_used": {
+    "data": {
+      "data_dir": "data",
+      "dataset_name": "heart_big",
+      "target_count": 15000,
+      "batch_size": 32,
+      "input_channels": 1
+    },
+    "training": {
+      "max_epochs": 50,
+      "patience": 10,
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "scheduler_factor": 0.1,
+      "scheduler_patience": 5
+    },
+    "model": {
+      "output_classes": 5,
+      "dropout_rate": 0.3,
+      "se_reduction": 16
+    },
+    "conv_layers": {
+      "conv1": {
+        "out_channels": 32,
+        "kernel_size": 11,
+        "padding": 5
+      },
+      "conv2": {
+        "out_channels": 64,
+        "kernel_size": 7,
+        "padding": 3
+      },
+      "conv3": {
+        "out_channels": 160,
+        "kernel_size": 3,
+        "padding": 1
+      }
+    },
+    "residual_blocks": {
+      "resblock1": {
+        "out_channels": 96,
+        "kernel_size": 5,
+        "padding": 2
+      },
+      "resblock2": {
+        "out_channels": 128,
+        "kernel_size": 3,
+        "padding": 1
+      }
+    },
+    "pooling": {
+      "maxpool_kernel": 2,
+      "maxpool_stride": 2,
+      "avgpool_output": 8
+    },
+    "fully_connected": {
+      "fc1_size": 384,
+      "fc2_size": 256,
+      "fc3_size": 96
+    },
+    "output": {
+      "log_dir": "logs/CNN_Arrythmea",
+      "confusion_matrix_file": "confusion_matrix.png",
+      "results_file": "final_results.json",
+      "class_names": [
+        "N",
+        "S",
+        "V",
+        "F",
+        "Q"
+      ],
+      "figure_dpi": 300
+    },
+    "hardware": {
+      "device": "auto"
+    }
+  }
+}
