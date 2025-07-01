@@ -1,0 +1,79 @@
+# Complete model en training configuration file
+# Alle hyperparameters, architectuur en training instellingen
+
+# Data configuratie
+[data]
+data_dir = "data"        # Pad naar de data directory
+dataset_name = "heart_big"  # Naam van de dataset
+target_count = 15000        # Aantal samples om te gebruiken
+batch_size = 32             # Batch grootte voor training
+input_channels = 1          # Aantal input kanalen
+
+# Training parameters
+[training]
+max_epochs = 50             # Maximum aantal epochs
+patience = 10               # Early stopping patience
+lr = 0.001                  # Learning rate
+weight_decay = 0.0001       # Weight decay voor regularisatie
+scheduler_factor = 0.1      # Factor voor learning rate scheduler
+scheduler_patience = 5      # Patience voor learning rate scheduler
+
+# Model architectuur
+[model]
+output_classes = 5          # Aantal output klassen
+dropout_rate = 0.3          # Dropout percentage (0.0 - 1.0)
+se_reduction = 16           # SE block reductie factor
+
+[conv_layers]
+# Eerste convolutie laag
+[conv_layers.conv1]
+out_channels = 32
+kernel_size = 11
+padding = 5
+
+# Tweede convolutie laag
+[conv_layers.conv2]
+out_channels = 64
+kernel_size = 7
+padding = 3
+
+# Derde convolutie laag
+[conv_layers.conv3]
+out_channels = 160
+kernel_size = 3
+padding = 1
+
+[residual_blocks]
+# Eerste residual block
+[residual_blocks.resblock1]
+out_channels = 96
+kernel_size = 5
+padding = 2
+
+# Tweede residual block
+[residual_blocks.resblock2]
+out_channels = 128
+kernel_size = 3
+padding = 1
+
+[pooling]
+maxpool_kernel = 2          # MaxPool kernel size
+maxpool_stride = 2          # MaxPool stride
+avgpool_output = 8          # AdaptiveAvgPool output size
+
+[fully_connected]
+fc1_size = 384             # Eerste FC laag grootte
+fc2_size = 256             # Tweede FC laag grootte
+fc3_size = 96              # Derde FC laag grootte
+
+# Output en logging configuratie
+[output]
+log_dir = "logs/CNN_Arrythmea"                  # Directory voor TensorBoard logs
+confusion_matrix_file = "confusion_matrix.png"  # Bestandsnaam voor confusion matrix
+results_file = "final_results.json"             # Bestandsnaam voor finale resultaten
+class_names = ["N", "S", "V", "F", "Q"]         # Namen van de klassen
+figure_dpi = 300                                # DPI voor opgeslagen figuren
+
+# Hardware configuratie
+[hardware]
+device = "auto"             # "auto", "cpu", "cuda", "mps"# Complete model en training configuration file

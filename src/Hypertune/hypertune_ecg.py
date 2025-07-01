@@ -34,7 +34,7 @@ def train_simplecnn() -> Tuple[torch.nn.Module, Any]:
     }
 
     trainstreamer, validstreamer = get_heart_streamers(config)  # AS <custom data streaming>
-    model = SimpleCNN(config)  # AS <custom model initialization>
+    model = SimpleCNN("config.toml")  # AS <custom model initialization> # Was config, maar met de .toml nu naar de toml verwezen
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
